@@ -40,7 +40,7 @@ def make_groq_call(stems, song_name, p, section_type=None, bpm=120, bars=16):
         Available stems: {stems}
         
         BPM: {bpm}
-        Bars: {bars}
+        Length of the section: {bars} bars
         
         For each variant, please provide specific instructions on:
         1. Which stems to include
@@ -215,21 +215,21 @@ def create_section_from_json(section_config, stems):
                 final_stems.append(processed_stems[no_spaces_name])
     
     # Overlay stems if specified
-    if section_config.get("overlay", True) and final_stems:
-        result = final_stems[0]
-        for stem in final_stems[1:]:
-            result = result.overlay(stem)
+    # if section_config.get("overlay", True) and final_stems:
+    result = final_stems[0]
+    for stem in final_stems[1:]:
+        result = result.overlay(stem)
         return result
-    elif final_stems:
-        # Concatenate stems if not overlaying
-        result = final_stems[0]
-        for stem in final_stems[1:]:
-            result += stem
-        return result
+    # elif final_stems:
+    #     # Concatenate stems if not overlaying
+    #     result = final_stems[0]
+    #     for stem in final_stems[1:]:
+    #         result += stem
+    #     return result
     
     return AudioSegment.empty()
 
-def generate_section_variants(stems_folder, section_type, bpm, bars, p=0.5):
+def generate_section_variants(stems_folder, audio_stems, section_type, bpm, bars, p=0.5):
     """
     Generate multiple variants for a specific section
     
@@ -247,7 +247,6 @@ def generate_section_variants(stems_folder, section_type, bpm, bars, p=0.5):
     llm_response = make_groq_call(stems, f"{section_type} section", p, section_type=section_type, bpm=bpm, bars=bars)
     
     # Load audio files
-    audio_stems = load_audio_files(stems_folder)
     if not audio_stems:
         print("No stems loaded.")
         return {}
@@ -267,7 +266,7 @@ def generate_section_variants(stems_folder, section_type, bpm, bars, p=0.5):
     
     return variants
 
-def create_full_track(sections_folder, selected_variants, crossfade_ms=500):
+def create_full_track(sections_folder, audio_stems, selected_variants, crossfade_ms=500):
     """
     Create a full track from selected variants
     
@@ -282,21 +281,18 @@ def create_full_track(sections_folder, selected_variants, crossfade_ms=500):
     final_track = None
     
     # Define the order of sections
-    section_order = ["intro", "variation1", "full_loop", "variation2", "variation3", "outro"]
+    section_order = ["intro", "buildup", "full_loop", "breakdown", "bridge", "buildup2", "drop2", "breakdown2", "outro"]
     
     # Process each section in order
     for section_name in section_order:
         if section_name not in selected_variants:
             continue
             
-        # Load stems for this section
-        stems = load_audio_files(sections_folder)
-        
         # Get the selected variant config
         variant_config = selected_variants[section_name]
         
         # Create audio for this section
-        section_audio = create_section_from_json(variant_config, stems)
+        section_audio = create_section_from_json(variant_config, audio_stems)
         
         # Add to final track
         if final_track is None:

@@ -74,7 +74,7 @@ def generate_section_variants_handler(
     progress=gr.Progress()
 ):
     """Handler function for generating section variants"""
-    global TEMP_DIR, ALL_VARIANTS
+    global TEMP_DIR, ALL_VARIANTS, UPLOADED_STEMS
     
     if not TEMP_DIR or not os.path.exists(TEMP_DIR):
         return "Error: No stems loaded. Please upload stems first.", None, None, None, None
@@ -85,6 +85,7 @@ def generate_section_variants_handler(
         # Generate variants
         variants = generate_section_variants(
             TEMP_DIR, 
+            UPLOADED_STEMS,
             section_type, 
             bpm=int(bpm_value), 
             bars=int(bars_value), 

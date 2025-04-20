@@ -1,0 +1,65 @@
+[
+  [
+    1,
+    16,
+    "Intro",
+    16,
+    "Linear"
+  ],
+  [
+    17,
+    48,
+    "Verse 1",
+    32,
+    "Flat"
+  ],
+  [
+    49,
+    64,
+    "Build-Up",
+    15,
+    "Linear"
+  ],
+  [
+    67,
+    100,
+    "Drop 1",
+    64,
+    "Flat"
+  ],
+  [
+    131,
+    40,
+    "Breakdown",
+    16,
+    "-ve Linear"
+  ],
+  [
+    147,
+    60,
+    "Bridge",
+    32,
+    "Flat"
+  ],
+  [
+    179,
+    64,
+    "Build-Up",
+    16,
+    "Linear"
+  ],
+  [
+    195,
+    100,
+    "Drop 2",
+    64,
+    "Flat"
+  ],
+  [
+    259,
+    40,
+    "Outro/Fade",
+    16,
+    "-ve Linear"
+  ]
+]
