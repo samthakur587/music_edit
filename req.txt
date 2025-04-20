@@ -1,0 +1,8 @@
+pydub
+gradio
+groq
+soundfile
+tqdm
+numpy
+librosa
+python-dotenv
