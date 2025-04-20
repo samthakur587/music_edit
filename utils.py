@@ -41,6 +41,7 @@ def make_groq_call(stems, song_name, p, section_type=None, bpm=120, bars=16):
         
         BPM: {bpm}
         Bars: {bars}
+        Section duration: {calculate_duration(bpm, bars)} seconds
         
         For each variant, please provide specific instructions on:
         1. Which stems to include
@@ -58,7 +59,10 @@ def make_groq_call(stems, song_name, p, section_type=None, bpm=120, bars=16):
                     {{"stem": "stem2.wav", "operation": "fade_in", "value": 1000}}
                 ],
                 "overlay": true,
-                "description": "A brief description of this variant"
+                "description": "A brief description of this variant",
+                "bpm": {bpm},
+                "bars": {bars},
+                "duration_seconds": {calculate_duration(bpm, bars)}
             }},
             "variant2": {{ ... }},
             "variant3": {{ ... }},
@@ -69,19 +73,35 @@ def make_groq_call(stems, song_name, p, section_type=None, bpm=120, bars=16):
         system_content = """You are a very experienced music producer and analyst. For a given audio folder, that has the instruments, are combined to make a loop, and make some variations of it as well. After analyzing the code, you are supposed to return the code containing the different functions for producing the full track."""
         
         user_content = f"""Now, you have a new song {song_name}, which has the following contents:
-        {stems}
-        
-        BPM: {bpm}
-        Bars: {bars}
-        
-        Return the code as per discussed in example. Make proper arrangements, for best groovy music. Create 3 variations and return code in JSON. And make sure to use as many instruments possible in each variation.
-        
-        NOTE: And at least once, the MAIN loop should have ALL stems.
-        
-        Like the variations should be like the main full loop, with some adjustments according to value of p={p} (p will remain in between 0-1; 0 means no variation in loop and 1 means high variation in loop), and then another variation can be a two times repeat of the full loop, with some effects in second time. Make intro better, with some more instruments.
-        
-        The main loop should have ALL wav files, don't exclude any please. Return proper JSON, with all the keys and values.
-        """
+            {stems}
+
+            BPM: {bpm}
+            Bars: {bars}
+            Section duration: {calculate_duration(bpm, bars)} seconds
+
+            Each section should last exactly the calculated duration based on BPM and bars.
+
+            Return the code as per discussed in example. Create an EDM/electronic track with the following sections in order:
+            - intro: A gentle introduction to the track (8 bars)
+            - breakdown1: First breakdown with minimal elements (8 bars)
+            - buildup1: First tension-building section with rising energy (8 bars)
+            - drop1: First high-energy dance section with all elements (16 bars)
+            - breakdown2: Second breakdown for contrast (8 bars)
+            - buildup2: Second buildup with different elements than the first (8 bars)
+            - drop2: Second high-energy section with variations from the first drop (16 bars)
+            - outro: A gentle conclusion to the track (8 bars)
+
+            Return code in JSON. And make sure to use as many instruments possible in each variation.
+
+            For each section, include:
+            - "bpm": {bpm}
+            - "bars": the number of bars for this section (values suggested above)
+            - "duration_seconds": the calculated duration based on BPM and bars
+
+            The drops should have ALL stems. Adjust each section according to value of p={p} (p will remain in between 0-1; 0 means no variation in loop and 1 means high variation in loop).
+
+            Return proper JSON, with all the keys and values.
+            """
     
     completion = client.chat.completions.create(
         model="meta-llama/llama-4-maverick-17b-128e-instruct",
@@ -172,6 +192,11 @@ def create_section_from_json(section_config, stems):
         print("No configuration found for section")
         return AudioSegment.empty()
     
+    # Get BPM and bars from section config
+    bpm = section_config.get("bpm", 120)
+    bars = section_config.get("bars", 16)
+    target_duration_ms = int(calculate_duration(bpm, bars) * 1000)  # Convert to milliseconds
+    
     section_stems = []
     for stem_name in section_config["stems"]:
         # First try the original stem name
@@ -214,20 +239,37 @@ def create_section_from_json(section_config, stems):
             if no_spaces_name in processed_stems:
                 final_stems.append(processed_stems[no_spaces_name])
     
-    # Overlay stems if specified
+    # Create base audio
     if section_config.get("overlay", True) and final_stems:
         result = final_stems[0]
         for stem in final_stems[1:]:
             result = result.overlay(stem)
-        return result
     elif final_stems:
         # Concatenate stems if not overlaying
         result = final_stems[0]
         for stem in final_stems[1:]:
             result += stem
-        return result
+    else:
+        return AudioSegment.empty()
     
-    return AudioSegment.empty()
+    # Adjust to target duration based on BPM and bars
+    current_duration_ms = len(result)
+    
+    if current_duration_ms < target_duration_ms:
+        # If too short, loop the audio until it reaches target duration
+        repeats_needed = target_duration_ms // current_duration_ms
+        remainder_ms = target_duration_ms % current_duration_ms
+        
+        extended_result = result * repeats_needed
+        if remainder_ms > 0:
+            extended_result += result[:remainder_ms]
+        result = extended_result
+    elif current_duration_ms > target_duration_ms:
+        # If too long, trim to match target duration
+        result = result[:target_duration_ms]
+    
+    print(f"Created section with duration: {len(result)/1000:.2f}s (target: {target_duration_ms/1000:.2f}s)")
+    return result
 
 def generate_section_variants(stems_folder, section_type, bpm, bars, p=0.5):
     """
@@ -257,6 +299,12 @@ def generate_section_variants(stems_folder, section_type, bpm, bars, p=0.5):
     for variant_key in llm_response:
         if variant_key.startswith("variant"):
             variant_config = llm_response[variant_key]
+            # Ensure BPM and bars are properly set in the variant config
+            if "bpm" not in variant_config:
+                variant_config["bpm"] = bpm
+            if "bars" not in variant_config:
+                variant_config["bars"] = bars
+                
             audio = create_section_from_json(variant_config, audio_stems)
             description = variant_config.get("description", f"Variant {variant_key[-1]}")
             variants[variant_key] = {
@@ -267,13 +315,14 @@ def generate_section_variants(stems_folder, section_type, bpm, bars, p=0.5):
     
     return variants
 
-def create_full_track(sections_folder, selected_variants, crossfade_ms=500):
+def create_full_track(stems_folder, llm_answer, bpm=120, crossfade_ms=500):
     """
-    Create a full track from selected variants
+    Create a full track with sections based on BPM and bar counts
     
     Args:
-        sections_folder (dict): Dict mapping section names to their folder paths
-        selected_variants (dict): Dict mapping section names to their selected variant configs
+        stems_folder (str): Path to folder containing stem files
+        llm_answer (dict): The full LLM response with section configurations
+        bpm (int): Default BPM if not specified in sections
         crossfade_ms (int): Crossfade duration in milliseconds
         
     Returns:
@@ -281,22 +330,55 @@ def create_full_track(sections_folder, selected_variants, crossfade_ms=500):
     """
     final_track = None
     
-    # Define the order of sections
-    section_order = ["intro", "variation1", "full_loop", "variation2", "variation3", "outro"]
+    # Load stems
+    stems = load_audio_files(stems_folder)
+    
+    # Define the order of sections and their creation functions
+    sections = [
+        ("intro", create_intro),
+        ("breakdown1", create_breakdown1),
+        ("buildup1", create_buildup1),
+        ("drop1", create_drop1),
+        ("breakdown2", create_breakdown2),
+        ("buildup2", create_buildup2),
+        ("drop2", create_drop2),
+        ("outro", create_outro)
+    ]
     
     # Process each section in order
-    for section_name in section_order:
-        if section_name not in selected_variants:
+    section_durations = {}
+    for section_name, create_function in sections:
+        section_key = f"create_{section_name}"
+        if section_key not in llm_answer:
+            print(f"Skipping section {section_name} (not found in LLM answer)")
             continue
             
-        # Load stems for this section
-        stems = load_audio_files(sections_folder)
+        # Get section config and ensure BPM and bars are set
+        section_config = llm_answer[section_key]
+        if not section_config:
+            continue
+            
+        # Update section config with BPM and bars if not present
+        if "bpm" not in section_config:
+            section_config["bpm"] = bpm
+        if "bars" not in section_config:
+            # Default to 16 bars for most sections, 8 for intro/outro
+            default_bars = 8 if section_name in ["intro", "outro"] else 16
+            section_config["bars"] = default_bars
         
-        # Get the selected variant config
-        variant_config = selected_variants[section_name]
+        # Print section details
+        section_bpm = section_config["bpm"]
+        section_bars = section_config["bars"]
+        section_duration = calculate_duration(section_bpm, section_bars)
+        section_durations[section_name] = section_duration
+        
+        print(f"\nCreating {section_name}:")
+        print(f"  - BPM: {section_bpm}")
+        print(f"  - Bars: {section_bars}")
+        print(f"  - Target duration: {get_formatted_duration(section_duration)}")
         
         # Create audio for this section
-        section_audio = create_section_from_json(variant_config, stems)
+        section_audio = create_function(llm_answer, stems)
         
         # Add to final track
         if final_track is None:
@@ -304,31 +386,54 @@ def create_full_track(sections_folder, selected_variants, crossfade_ms=500):
         else:
             final_track = final_track.append(section_audio, crossfade=crossfade_ms)
     
+    # Print summary of section durations
+    print("\nSection durations:")
+    total_duration = sum(section_durations.values())
+    for section, duration in section_durations.items():
+        print(f"  - {section}: {get_formatted_duration(duration)} ({duration:.1f}s)")
+    print(f"Total track duration: {get_formatted_duration(total_duration)} ({total_duration:.1f}s)")
+    
     return final_track
 
 def create_intro(llm_answer, stems):
-    """Create intro section from LLM answer"""
-    return create_section_from_json(llm_answer.get("create_intro", {}), stems)
+    """Create intro section from LLM answer with proper duration"""
+    section_config = llm_answer.get("create_intro", {})
+    return create_section_from_json(section_config, stems)
 
-def create_variation1(llm_answer, stems):
-    """Create variation1 section from LLM answer"""
-    return create_section_from_json(llm_answer.get("create_variation1", {}), stems)
+def create_breakdown1(llm_answer, stems):
+    """Create breakdown1 section from LLM answer with proper duration"""
+    section_config = llm_answer.get("create_breakdown1", {})
+    return create_section_from_json(section_config, stems)
 
-def create_full_loop(llm_answer, stems):
-    """Create full loop section from LLM answer"""
-    return create_section_from_json(llm_answer.get("create_full_loop", {}), stems)
+def create_buildup1(llm_answer, stems):
+    """Create buildup1 section from LLM answer with proper duration"""
+    section_config = llm_answer.get("create_buildup1", {})
+    return create_section_from_json(section_config, stems)
 
-def create_variation2(llm_answer, stems):
-    """Create variation2 section from LLM answer"""
-    return create_section_from_json(llm_answer.get("create_variation2", {}), stems)
+def create_drop1(llm_answer, stems):
+    """Create drop1 section from LLM answer with proper duration"""
+    section_config = llm_answer.get("create_drop1", {})
+    return create_section_from_json(section_config, stems)
 
-def create_variation3(llm_answer, stems):
-    """Create variation3 section from LLM answer"""
-    return create_section_from_json(llm_answer.get("create_variation3", {}), stems)
+def create_breakdown2(llm_answer, stems):
+    """Create breakdown2 section from LLM answer with proper duration"""
+    section_config = llm_answer.get("create_breakdown2", {})
+    return create_section_from_json(section_config, stems)
+
+def create_buildup2(llm_answer, stems):
+    """Create buildup2 section from LLM answer with proper duration"""
+    section_config = llm_answer.get("create_buildup2", {})
+    return create_section_from_json(section_config, stems)
+
+def create_drop2(llm_answer, stems):
+    """Create drop2 section from LLM answer with proper duration"""
+    section_config = llm_answer.get("create_drop2", {})
+    return create_section_from_json(section_config, stems)
 
 def create_outro(llm_answer, stems):
-    """Create outro section from LLM answer"""
-    return create_section_from_json(llm_answer.get("create_outro", {}), stems)
+    """Create outro section from LLM answer with proper duration"""
+    section_config = llm_answer.get("create_outro", {})
+    return create_section_from_json(section_config, stems)
 
 def calculate_duration(bpm, bars):
     """Calculate duration in seconds for a given BPM and number of bars"""
@@ -355,3 +460,91 @@ def export_section_variants(variants, output_folder, section_name):
         file_paths[variant_key] = output_path
         
     return file_paths
+
+# def main(stems_folder, output_folder, song_name="New Track", bpm=120, variation_level=0.5):
+#     """
+#     Main function to create a full track with proper BPM-based timing
+    
+#     Args:
+#         stems_folder (str): Path to folder containing stem files
+#         output_folder (str): Path to output folder for generated audio
+#         song_name (str): Name of the song
+#         bpm (int): Beats per minute
+#         variation_level (float): Variation parameter (0-1)
+#     """
+#     # Ensure output folder exists
+#     if not os.path.exists(output_folder):
+#         os.makedirs(output_folder)
+    
+#     # Get stems and rename files to remove spaces
+#     rename_files_remove_spaces(stems_folder)
+#     stems = get_stems(stems_folder)
+    
+#     # Define default bar counts for each section
+#     section_bars = {
+#         "intro": 8,
+#         "breakdown1": 16,
+#         "buildup1": 16,
+#         "drop1": 16,
+#         "breakdown2": 16,
+#         "outro": 8
+#     }
+    
+#     # Generate full track arrangement from LLM
+#     llm_response = make_groq_call(
+#         stems, 
+#         song_name, 
+#         variation_level, 
+#         section_type=None, 
+#         bpm=bpm, 
+#         bars=16  # Default bars for main loop
+#     )
+    
+#     # Update section configs with proper BPM and bar counts
+#     for section_name in section_bars:
+#         section_key = f"create_{section_name}"
+#         if section_key in llm_response and llm_response[section_key]:
+#             llm_response[section_key]["bpm"] = bpm
+#             llm_response[section_key]["bars"] = section_bars[section_name]
+#             duration = calculate_duration(bpm, section_bars[section_name])
+#             llm_response[section_key]["duration_seconds"] = duration
+    
+#     # Create full track with proper timing
+#     full_track = create_full_track(stems_folder, llm_response, bpm=bpm)
+    
+#     # Export full track
+#     output_path = os.path.join(output_folder, f"{song_name}.wav")
+#     full_track.export(output_path, format="wav")
+#     print(f"Full track exported to: {output_path}")
+    
+#     # Return stats
+#     total_duration = sum(calculate_duration(bpm, section_bars[section]) 
+#                          for section in section_bars)
+    
+#     return {
+#         "song_name": song_name,
+#         "bpm": bpm,
+#         "total_bars": sum(section_bars.values()),
+#         "duration": get_formatted_duration(total_duration),
+#         "output_path": output_path
+#     }
+
+# # Example usage
+# if __name__ == "__main__":
+#     # Example parameters - these would come from user input in a real application
+#     stems_folder = "./stems"
+#     output_folder = "./output"
+#     song_name = "Groovy Beat"
+#     bpm = 128
+#     variation_level = 0.7
+    
+#     # Generate track
+#     result = main(stems_folder, output_folder, song_name, bpm, variation_level)
+    
+#     # Print result
+#     print("\nTrack generation complete!")
+#     print(f"Song: {result['song_name']}")
+#     print(f"BPM: {result['bpm']}")
+#     print(f"Total bars: {result['total_bars']}")
+#     print(f"Duration: {result['duration']}")
+#     print(f"Output file: {result['output_path']}")

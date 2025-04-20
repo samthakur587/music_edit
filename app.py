@@ -147,9 +147,10 @@ def generate_full_track(
     crossfade_ms,
     output_track_name,
     include_intro,
-    include_variation1,
-    include_variation2,
-    include_variation3,
+    include_breakdown1,
+    include_drop1,
+    include_breakdown2,
+    include_drop2,
     include_outro,
     progress=gr.Progress()
 ):
@@ -168,19 +169,24 @@ def generate_full_track(
         if include_intro and "intro" in SELECTED_VARIANTS:
             sections_to_include["intro"] = SELECTED_VARIANTS["intro"]
             
-        if include_variation1 and "variation1" in SELECTED_VARIANTS:
-            sections_to_include["variation1"] = SELECTED_VARIANTS["variation1"]
+        if include_breakdown1 and "breakdown1" in SELECTED_VARIANTS:
+            sections_to_include["breakdown1"] = SELECTED_VARIANTS["breakdown1"]
             
-        # We always include the full loop if it exists
-        if "full_loop" in SELECTED_VARIANTS:
-            sections_to_include["full_loop"] = SELECTED_VARIANTS["full_loop"]
+        # We always include the buildup 1 if it exists
+        if "buildup1" in SELECTED_VARIANTS:
+            sections_to_include["buildup1"] = SELECTED_VARIANTS["buildup1"]
             
-        if include_variation2 and "variation2" in SELECTED_VARIANTS:
-            sections_to_include["variation2"] = SELECTED_VARIANTS["variation2"]
+        if include_drop1 and "drop1" in SELECTED_VARIANTS:
+            sections_to_include["drop1"] = SELECTED_VARIANTS["drop1"]
             
-        if include_variation3 and "variation3" in SELECTED_VARIANTS:
-            sections_to_include["variation3"] = SELECTED_VARIANTS["variation3"]
-            
+        if include_breakdown2 and "breakdown2" in SELECTED_VARIANTS:
+            sections_to_include["breakdown2"] = SELECTED_VARIANTS["breakdown2"]
+        
+        if "buildup2" in SELECTED_VARIANTS:
+            sections_to_include["buildup2"] = SELECTED_VARIANTS["buildup2"]
+        if include_drop2 and "drop2" in SELECTED_VARIANTS:
+            sections_to_include["drop2"] = SELECTED_VARIANTS["drop2"]
+        
         if include_outro and "outro" in SELECTED_VARIANTS:
             sections_to_include["outro"] = SELECTED_VARIANTS["outro"]
         
@@ -193,7 +199,7 @@ def generate_full_track(
         final_track = None
         
         # Define the order of sections
-        section_order = ["intro", "variation1", "full_loop", "variation2", "variation3", "outro"]
+        section_order = ["intro", "breakdown1", "buildup1", "drop1", "breakdown2", "buildup2", "drop2" "outro"]
         
         # Process each section in order
         for section_name in section_order:
@@ -243,20 +249,36 @@ def generate_full_track(
     except Exception as e:
         return f"Error generating track: {str(e)}", None, None
 
-def generate_full_loop_variants(
+def generate_buildup1_variants(
     bpm_value, 
     bars_value, 
     p_value,
     progress=gr.Progress()
 ):
-    """Generate variants for the full loop section"""
+    """Generate variants for the buildup 1 section"""
     return generate_section_variants_handler(
-        "full_loop", 
+        "buildup1", 
         bpm_value, 
         bars_value, 
         p_value,
         progress
     )
+
+def generate_buildup2_variants(
+    bpm_value, 
+    bars_value, 
+    p_value,
+    progress=gr.Progress()
+):
+    """Generate variants for the buildup 2 section"""
+    return generate_section_variants_handler(
+        "buildup2", 
+        bpm_value, 
+        bars_value, 
+        p_value,
+        progress
+    )
+
 
 # Create Gradio interface
 with gr.Blocks(title="Interactive Music Track Generator") as demo:
@@ -285,25 +307,25 @@ with gr.Blocks(title="Interactive Music Track Generator") as demo:
                 stem_display = gr.JSON(label="Available Stems")
     
     with gr.Tab("2. Generate Section Variants"):
-        with gr.Accordion("Generate Full Loop Variants", open=True):
+        with gr.Accordion("Generate buildup 1 Variants", open=True):
             with gr.Row():
                 with gr.Column(scale=1):
-                    gr.Markdown("### Full Loop Parameters")
-                    full_loop_bpm = gr.Slider(
+                    gr.Markdown("### buildup 1 Parameters")
+                    buildup1_bpm = gr.Slider(
                         label="BPM (Beats Per Minute)",
                         minimum=60,
                         maximum=180,
                         value=120,
                         step=1
                     )
-                    full_loop_bars = gr.Slider(
+                    buildup1_bars = gr.Slider(
                         label="Number of Bars",
                         minimum=4,
                         maximum=64,
                         value=16,
                         step=4
                     )
-                    full_loop_p = gr.Slider(
+                    buildup1_p = gr.Slider(
                         label="Variation Parameter (p)",
                         minimum=0,
                         maximum=1,
@@ -311,31 +333,31 @@ with gr.Blocks(title="Interactive Music Track Generator") as demo:
                         step=0.1
                     )
                     
-                    generate_full_loop_btn = gr.Button("Generate Full Loop Variants", variant="primary")
+                    generate_buildup1_btn = gr.Button("Generate buildup 1 Variants", variant="primary")
                     
                 with gr.Column(scale=2):
-                    full_loop_status = gr.Textbox(label="Status", interactive=False)
-                    full_loop_descriptions = gr.JSON(label="Variant Descriptions")
+                    buildup1_status = gr.Textbox(label="Status", interactive=False)
+                    buildup1_descriptions = gr.JSON(label="Variant Descriptions")
             
             with gr.Row():
                 with gr.Column():
                     gr.Markdown("### Variant 1")
-                    full_loop_variant1 = gr.Audio(label="Variant 1")
-                    select_full_loop_1_btn = gr.Button("Select Variant 1")
+                    buildup1_variant1 = gr.Audio(label="Variant 1")
+                    select_buildup1_1_btn = gr.Button("Select Variant 1")
                 with gr.Column():
                     gr.Markdown("### Variant 2")
-                    full_loop_variant2 = gr.Audio(label="Variant 2")
-                    select_full_loop_2_btn = gr.Button("Select Variant 2")
+                    buildup1_variant2 = gr.Audio(label="Variant 2")
+                    select_buildup1_2_btn = gr.Button("Select Variant 2")
             
             with gr.Row():
                 with gr.Column():
                     gr.Markdown("### Variant 3")
-                    full_loop_variant3 = gr.Audio(label="Variant 3")
-                    select_full_loop_3_btn = gr.Button("Select Variant 3")
+                    buildup1_variant3 = gr.Audio(label="Variant 3")
+                    select_buildup1_3_btn = gr.Button("Select Variant 3")
                 with gr.Column():
                     gr.Markdown("### Variant 4")
-                    full_loop_variant4 = gr.Audio(label="Variant 4")
-                    select_full_loop_4_btn = gr.Button("Select Variant 4")
+                    buildup1_variant4 = gr.Audio(label="Variant 4")
+                    select_buildup1_4_btn = gr.Button("Select Variant 4")
         
         with gr.Accordion("Generate Intro Variants"):
             with gr.Row():
@@ -389,10 +411,10 @@ with gr.Blocks(title="Interactive Music Track Generator") as demo:
                     intro_variant4 = gr.Audio(label="Variant 4")
                     select_intro_4_btn = gr.Button("Select Variant 4")
         
-        with gr.Accordion("Generate Variation 1 Variants"):
+        with gr.Accordion("Generate breakdown 1 Variants"):
             with gr.Row():
                 with gr.Column(scale=1):
-                    gr.Markdown("### Variation 1 Parameters")
+                    gr.Markdown("### breakdown 1 Parameters")
                     var1_bpm = gr.Slider(
                         label="BPM (Beats Per Minute)",
                         minimum=60,
@@ -414,7 +436,7 @@ with gr.Blocks(title="Interactive Music Track Generator") as demo:
                         value=0.4,
                         step=0.1
                     )
-                    generate_var1_btn = gr.Button("Generate Variation 1 Variants", variant="primary")
+                    generate_var1_btn = gr.Button("Generate breakdown 1 Variants", variant="primary")
                     
                 with gr.Column(scale=2):
                     var1_status = gr.Textbox(label="Status", interactive=False)
@@ -440,10 +462,10 @@ with gr.Blocks(title="Interactive Music Track Generator") as demo:
                     var1_variant4 = gr.Audio(label="Variant 4")
                     select_var1_4_btn = gr.Button("Select Variant 4")
         
-        with gr.Accordion("Generate Variation 2 Variants"):
+        with gr.Accordion("Generate drop 1 Variants"):
             with gr.Row():
                 with gr.Column(scale=1):
-                    gr.Markdown("### Variation 2 Parameters")
+                    gr.Markdown("### drop 1 Parameters")
                     var2_bpm = gr.Slider(
                         label="BPM (Beats Per Minute)",
                         minimum=60,
@@ -466,7 +488,7 @@ with gr.Blocks(title="Interactive Music Track Generator") as demo:
                         step=0.1
                     )
                     
-                    generate_var2_btn = gr.Button("Generate Variation 2 Variants", variant="primary")
+                    generate_var2_btn = gr.Button("Generate drop 1 Variants", variant="primary")
                     
                 with gr.Column(scale=2):
                     var2_status = gr.Textbox(label="Status", interactive=False)
@@ -492,10 +514,10 @@ with gr.Blocks(title="Interactive Music Track Generator") as demo:
                     var2_variant4 = gr.Audio(label="Variant 4")
                     select_var2_4_btn = gr.Button("Select Variant 4")
                     
-        with gr.Accordion("Generate Variation 3 Variants"):
+        with gr.Accordion("Generate breakdown 2 Variants"):
             with gr.Row():
                 with gr.Column(scale=1):
-                    gr.Markdown("### Variation 3 Parameters")
+                    gr.Markdown("### breakdown 2 Parameters")
                     var3_bpm = gr.Slider(
                         label="BPM (Beats Per Minute)",
                         minimum=60,
@@ -518,7 +540,7 @@ with gr.Blocks(title="Interactive Music Track Generator") as demo:
                         step=0.1
                     )
                     
-                    generate_var3_btn = gr.Button("Generate Variation 3 Variants", variant="primary")
+                    generate_var3_btn = gr.Button("Generate breakdown 2 Variants", variant="primary")
                     
                 with gr.Column(scale=2):
                     var3_status = gr.Textbox(label="Status", interactive=False)
@@ -544,6 +566,111 @@ with gr.Blocks(title="Interactive Music Track Generator") as demo:
                     var3_variant4 = gr.Audio(label="Variant 4")
                     select_var3_4_btn = gr.Button("Select Variant 4")
         
+
+        with gr.Accordion("Generate buildup 2 Variants", open=True):
+            with gr.Row():
+                with gr.Column(scale=1):
+                    gr.Markdown("### buildup 1 Parameters")
+                    buildup2_bpm = gr.Slider(
+                        label="BPM (Beats Per Minute)",
+                        minimum=60,
+                        maximum=180,
+                        value=120,
+                        step=1
+                    )
+                    buildup2_bars = gr.Slider(
+                        label="Number of Bars",
+                        minimum=4,
+                        maximum=64,
+                        value=16,
+                        step=4
+                    )
+                    buildup2_p = gr.Slider(
+                        label="Variation Parameter (p)",
+                        minimum=0,
+                        maximum=1,
+                        value=0.5,
+                        step=0.1
+                    )
+                    
+                    generate_buildup2_btn = gr.Button("Generate buildup 1 Variants", variant="primary")
+                    
+                with gr.Column(scale=2):
+                    buildup2_status = gr.Textbox(label="Status", interactive=False)
+                    buildup2_descriptions = gr.JSON(label="Variant Descriptions")
+            
+            with gr.Row():
+                with gr.Column():
+                    gr.Markdown("### Variant 1")
+                    buildup2_variant1 = gr.Audio(label="Variant 1")
+                    select_buildup2_1_btn = gr.Button("Select Variant 1")
+                with gr.Column():
+                    gr.Markdown("### Variant 2")
+                    buildup2_variant2 = gr.Audio(label="Variant 2")
+                    select_buildup2_2_btn = gr.Button("Select Variant 2")
+            
+            with gr.Row():
+                with gr.Column():
+                    gr.Markdown("### Variant 3")
+                    buildup2_variant3 = gr.Audio(label="Variant 3")
+                    select_buildup2_3_btn = gr.Button("Select Variant 3")
+                with gr.Column():
+                    gr.Markdown("### Variant 4")
+                    buildup2_variant4 = gr.Audio(label="Variant 4")
+                    select_buildup2_4_btn = gr.Button("Select Variant 4")
+        
+        with gr.Accordion("Generate drop 2 Variants"):
+            with gr.Row():
+                with gr.Column(scale=1):
+                    gr.Markdown("### drop 2 Parameters")
+                    var2_bpm = gr.Slider(
+                        label="BPM (Beats Per Minute)",
+                        minimum=60,
+                        maximum=180,
+                        value=120,
+                        step=1
+                    )
+                    var2_bars = gr.Slider(
+                        label="Number of Bars",
+                        minimum=4,
+                        maximum=64,
+                        value=16,
+                        step=4
+                    )
+                    var2_p = gr.Slider(
+                        label="Variation Parameter (p)",
+                        minimum=0,
+                        maximum=1,
+                        value=0.6,
+                        step=0.1
+                    )
+                    
+                    generate_var2_btn = gr.Button("Generate drop 2 Variants", variant="primary")
+                    
+                with gr.Column(scale=2):
+                    var2_status = gr.Textbox(label="Status", interactive=False)
+                    var2_descriptions = gr.JSON(label="Variant Descriptions")
+            
+            with gr.Row():
+                with gr.Column():
+                    gr.Markdown("### Variant 1")
+                    var2_variant1 = gr.Audio(label="Variant 1")
+                    select_var2_1_btn = gr.Button("Select Variant 1")
+                with gr.Column():
+                    gr.Markdown("### Variant 2")
+                    var2_variant2 = gr.Audio(label="Variant 2")
+                    select_var2_2_btn = gr.Button("Select Variant 2")
+            
+            with gr.Row():
+                with gr.Column():
+                    gr.Markdown("### Variant 3")
+                    var2_variant3 = gr.Audio(label="Variant 3")
+                    select_var2_3_btn = gr.Button("Select Variant 3")
+                with gr.Column():
+                    gr.Markdown("### Variant 4")
+                    var2_variant4 = gr.Audio(label="Variant 4")
+                    select_var2_4_btn = gr.Button("Select Variant 4")
+                    
         with gr.Accordion("Generate Outro Variants"):
             with gr.Row():
                 with gr.Column(scale=1):
@@ -615,9 +742,10 @@ with gr.Blocks(title="Interactive Music Track Generator") as demo:
                 
                 gr.Markdown("### Sections to Include")
                 include_intro = gr.Checkbox(label="Include Intro", value=True)
-                include_variation1 = gr.Checkbox(label="Include Variation 1", value=True)
-                include_variation2 = gr.Checkbox(label="Include Variation 2", value=True)
-                include_variation3 = gr.Checkbox(label="Include Variation 3", value=True)
+                include_breakdown1 = gr.Checkbox(label="Include breakdown 1", value=True)
+                include_drop1 = gr.Checkbox(label="Include drop 1", value=True)
+                include_breakdown2 = gr.Checkbox(label="Include breakdown 2", value=True)
+                include_drop2 = gr.Checkbox(label="Include drop 2", value=True)
                 include_outro = gr.Checkbox(label="Include Outro", value=True)
                 
                 generate_track_btn = gr.Button("Generate Full Track", variant="primary", scale=2)
@@ -634,52 +762,52 @@ with gr.Blocks(title="Interactive Music Track Generator") as demo:
         outputs=[upload_status, stem_display]
     )
     
-    # Full Loop generation and selection
-    full_loop_type = gr.State("full_loop")
-    generate_full_loop_btn.click(
+    # buildup 1 generation and selection
+    buildup1_type = gr.State("buildup1")
+    generate_buildup1_btn.click(
         fn=generate_section_variants_handler,
         inputs=[
-            full_loop_type,  # Fixed section type
-            full_loop_bpm,
-            full_loop_bars,
-            full_loop_p
+            buildup1_type,  # Fixed section type
+            buildup1_bpm,
+            buildup1_bars,
+            buildup1_p
         ],
         outputs=[
-            full_loop_status,
-            full_loop_variant1,
-            full_loop_variant2,
-            full_loop_variant3,
-            full_loop_variant4,
-            full_loop_descriptions
+            buildup1_status,
+            buildup1_variant1,
+            buildup1_variant2,
+            buildup1_variant3,
+            buildup1_variant4,
+            buildup1_descriptions
         ]
     )
-    full_loop_variant_1 = gr.State(1)
-    full_loop_variant_2 = gr.State(2)
-    full_loop_variant_3 = gr.State(3)
-    full_loop_variant_4 = gr.State(4)
+    buildup1_variant_1 = gr.State(1)
+    buildup1_variant_2 = gr.State(2)
+    buildup1_variant_3 = gr.State(3)
+    buildup1_variant_4 = gr.State(4)
     
-    select_full_loop_1_btn.click(
+    select_buildup1_1_btn.click(
         fn=select_variant,
-        inputs=[full_loop_type, full_loop_variant_1],
-        outputs=[full_loop_status]
+        inputs=[buildup1_type, buildup1_variant_1],
+        outputs=[buildup1_status]
     )
     
-    select_full_loop_2_btn.click(
+    select_buildup1_2_btn.click(
         fn=select_variant,
-        inputs=[full_loop_type, full_loop_variant_2],
-        outputs=[full_loop_status]
+        inputs=[buildup1_type, buildup1_variant_2],
+        outputs=[buildup1_status]
     )
     
-    select_full_loop_3_btn.click(
+    select_buildup1_3_btn.click(
         fn=select_variant,
-        inputs=[full_loop_type, full_loop_variant_3],
-        outputs=[full_loop_status]
+        inputs=[buildup1_type, buildup1_variant_3],
+        outputs=[buildup1_status]
     )
     
-    select_full_loop_4_btn.click(
+    select_buildup1_4_btn.click(
         fn=select_variant,
-        inputs=[full_loop_type, full_loop_variant_4],
-        outputs=[full_loop_status]
+        inputs=[buildup1_type, buildup1_variant_4],
+        outputs=[buildup1_status]
     )
     
     # Intro generation and selection
@@ -730,8 +858,8 @@ with gr.Blocks(title="Interactive Music Track Generator") as demo:
         outputs=[intro_status]
     )
     
-    # Variation 1 generation and selection
-    var1_type = gr.State("variation1")
+    # breakdown 1 generation and selection
+    var1_type = gr.State("breakdown1")
     generate_var1_btn.click(
         fn=generate_section_variants_handler,
         inputs=[
@@ -778,8 +906,8 @@ with gr.Blocks(title="Interactive Music Track Generator") as demo:
         outputs=[var1_status]
     )
     
-    # Variation 2 generation and selection
-    var2_type = gr.State("variation2")
+    # drop 1 generation and selection
+    var2_type = gr.State("drop1")
     generate_var2_btn.click(
         fn=generate_section_variants_handler,
         inputs=[
@@ -826,8 +954,8 @@ with gr.Blocks(title="Interactive Music Track Generator") as demo:
         outputs=[var2_status]
     )
     
-    # Variation 3 generation and selection
-    var3_type = gr.State("variation3")
+    # breakdown 2 generation and selection
+    var3_type = gr.State("breakdown2")
     generate_var3_btn.click(
         fn=generate_section_variants_handler,
         inputs=[
@@ -872,6 +1000,103 @@ with gr.Blocks(title="Interactive Music Track Generator") as demo:
         fn=select_variant,
         inputs=[var3_type, var3_variant_4],
         outputs=[var3_status]
+    )
+    
+    # buildup 2 generation and selection
+    buildup2_type = gr.State("buildup2")
+    generate_buildup2_btn.click(
+        fn=generate_section_variants_handler,
+        inputs=[
+            buildup2_type,  # Fixed section type
+            buildup2_bpm,
+            buildup2_bars,
+            buildup2_p
+        ],
+        outputs=[
+            buildup2_status,
+            buildup2_variant1,
+            buildup2_variant2,
+            buildup2_variant3,
+            buildup2_variant4,
+            buildup2_descriptions
+        ]
+    )
+    buildup2_variant_1 = gr.State(1)
+    buildup2_variant_2 = gr.State(2)
+    buildup2_variant_3 = gr.State(3)
+    buildup2_variant_4 = gr.State(4)
+    
+    select_buildup2_1_btn.click(
+        fn=select_variant,
+        inputs=[buildup2_type, buildup2_variant_1],
+        outputs=[buildup2_status]
+    )
+    
+    select_buildup2_2_btn.click(
+        fn=select_variant,
+        inputs=[buildup2_type, buildup2_variant_2],
+        outputs=[buildup2_status]
+    )
+    
+    select_buildup2_3_btn.click(
+        fn=select_variant,
+        inputs=[buildup2_type, buildup2_variant_3],
+        outputs=[buildup2_status]
+    )
+    
+    select_buildup2_4_btn.click(
+        fn=select_variant,
+        inputs=[buildup2_type, buildup2_variant_4],
+        outputs=[buildup2_status]
+    )
+    
+    
+    # drop 2 generation and selection
+    var2_type = gr.State("drop2")
+    generate_var2_btn.click(
+        fn=generate_section_variants_handler,
+        inputs=[
+            var2_type,  # Fixed section type
+            var2_bpm,
+            var2_bars,
+            var2_p
+        ],
+        outputs=[
+            var2_status,
+            var2_variant1,
+            var2_variant2,
+            var2_variant3,
+            var2_variant4,
+            var2_descriptions
+        ]
+    )
+    var2_variant_1 = gr.State(1)
+    var2_variant_2 = gr.State(2)
+    var2_variant_3 = gr.State(3)
+    var2_variant_4 = gr.State(4)
+    
+    select_var2_1_btn.click(
+        fn=select_variant,
+        inputs=[var2_type, var2_variant_1],
+        outputs=[var2_status]
+    )
+    
+    select_var2_2_btn.click(
+        fn=select_variant,
+        inputs=[var2_type, var2_variant_2],
+        outputs=[var2_status]
+    )
+    
+    select_var2_3_btn.click(
+        fn=select_variant,
+        inputs=[var2_type, var2_variant_3],
+        outputs=[var2_status]
+    )
+    
+    select_var2_4_btn.click(
+        fn=select_variant,
+        inputs=[var2_type, var2_variant_4],
+        outputs=[var2_status]
     )
     
     # Outro generation and selection
@@ -929,9 +1154,10 @@ with gr.Blocks(title="Interactive Music Track Generator") as demo:
             crossfade_ms,
             output_track_name,
             include_intro,
-            include_variation1,
-            include_variation2,
-            include_variation3,
+            include_breakdown1,
+            include_drop1,
+            include_breakdown2,
+            include_drop2,
             include_outro
         ],
         outputs=[
