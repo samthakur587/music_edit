@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎶 Music Arranger</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white p-6 font-sans">
+  <div id="app" class="container mx-auto">
+    <h1 class="text-3xl font-bold mb-4">🎛️ Music Arranger</h1>
+
+    <input type="file" ref="uploadInput" multiple accept=".wav" class="block mb-4 p-2 bg-gray-800 border border-gray-600 rounded" />
+    <button @click.prevent="uploadFiles" class="bg-blue-600 hover:bg-blue-500 text-white py-2 px-4 rounded">📤 Upload Files</button>
+
+    <div v-if="responseMessage" class="mt-4 p-4 bg-gray-800 border border-gray-600 rounded">
+      <h2 class="text-xl font-semibold mb-2">Response:</h2>
+      <pre class="text-sm">{{ responseMessage }}</pre>
+    </div>
+
+    <div v-if="gridData && Object.keys(gridData).length > 0" class="mt-6">
+      <h2 class="text-2xl font-bold mb-4">🎵 Instrument Grid</h2>
+      <div class="overflow-x-auto">
+        <table class="table-auto w-full border-collapse border border-gray-600">
+          <thead>
+            <tr>
+              <th class="border border-gray-600 px-4 py-2">Instrument</th>
+              <th v-for="(group, index) in barGroups" :colspan="group.bars.length" class="border border-gray-600 px-2 py-1 text-center">
+                {{ group.name }}
+              </th>
+            </tr>
+            <tr>
+              <th class="border border-gray-600 px-4 py-2"></th>
+              <th v-for="bar in totalBars" :key="bar" class="border border-gray-600 px-2 py-1">{{ bar }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(bars, instrument) in gridData" :key="instrument">
+              <td class="border border-gray-600 px-4 py-2">{{ instrument }}</td>
+              <td v-for="bar in totalBars" :key="bar" class="border border-gray-600 px-2 py-1 text-center">
+                <button
+                  :class="{'bg-green-500': isActive(instrument, bar), 'bg-gray-700': !isActive(instrument, bar)}"
+                  class="w-6 h-6 rounded"
+                  @mousedown="startToggle(instrument, bar)"
+                  @mouseover="dragToggle(instrument, bar)"
+                  @mouseup="endToggle"
+                ></button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div v-if="summaryData.length > 0" class="mt-6">
+      <h2 class="text-2xl font-bold mb-4">🎵 Summary Table</h2>
+      <table class="table-auto w-full border-collapse border border-gray-600">
+        <thead>
+          <tr>
+            <th class="border border-gray-600 px-4 py-2">Instrument</th>
+            <th class="border border-gray-600 px-4 py-2">Bars</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in summaryData" :key="row.instrument">
+            <td class="border border-gray-600 px-4 py-2">{{ row.instrument }}</td>
+            <td class="border border-gray-600 px-4 py-2">{{ row.bars.join(', ') }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const { createApp } = Vue;
+
+    createApp({
+      data() {
+        return {
+          responseMessage: null,
+          gridData: null, // To store the parsed JSON response for the grid
+          activeBars: {}, // To track active bars for each instrument
+          totalBars: Array.from({ length: 180 }, (_, i) => i + 1), // 180 bars
+          barGroups: [
+            { name: "Intro", bars: Array.from({ length: 16 }, (_, i) => i + 1) },
+            { name: "Drop", bars: Array.from({ length: 16 }, (_, i) => i + 17) },
+            { name: "Breakdown", bars: Array.from({ length: 16 }, (_, i) => i + 33) },
+            { name: "Outro", bars: Array.from({ length: 132 }, (_, i) => i + 49) },
+          ],
+          isDragging: false, // To track if the user is dragging
+          toggleState: null, // To track the toggle state during drag
+        };
+      },
+      computed: {
+        summaryData() {
+          // Generate summary table data based on active bars
+          return Object.entries(this.activeBars).map(([instrument, bars]) => ({
+            instrument,
+            bars: bars.sort((a, b) => a - b),
+          }));
+        },
+      },
+      methods: {
+        async uploadFiles() {
+          const uploadInput = this.$refs.uploadInput;
+          const files = Array.from(uploadInput.files);
+
+          if (files.length === 0) {
+            alert("Please select files to upload.");
+            return;
+          }
+
+          const formData = new FormData();
+          files.forEach(file => formData.append("files", file));
+
+          try {
+            const res = await axios.post("http://localhost:8000/upload", formData, {
+              headers: {
+                "Content-Type": "multipart/form-data",
+              },
+            });
+            this.responseMessage = JSON.stringify(res.data, null, 2);
+            this.gridData = res.data; // Store the JSON response for the grid
+
+            // Initialize activeBars for each instrument
+            this.activeBars = Object.keys(res.data).reduce((acc, instrument) => {
+              acc[instrument] = [];
+              return acc;
+            }, {});
+          } catch (error) {
+            this.responseMessage = `Upload failed: ${error.response?.data?.message || error.message}`;
+            this.gridData = null; // Clear the grid data on error
+          }
+        },
+        toggleBar(instrument, bar) {
+          // Toggle the active state of a bar for a specific instrument
+          if (!this.activeBars[instrument]) {
+            this.activeBars[instrument] = [];
+          }
+          const index = this.activeBars[instrument].indexOf(bar);
+          if (index === -1) {
+            this.activeBars[instrument].push(bar);
+          } else {
+            this.activeBars[instrument].splice(index, 1);
+          }
+        },
+        isActive(instrument, bar) {
+          // Check if a bar is active for a specific instrument
+          return this.activeBars[instrument]?.includes(bar);
+        },
+        startToggle(instrument, bar) {
+          this.isDragging = true;
+          this.toggleState = !this.isActive(instrument, bar);
+          this.toggleBar(instrument, bar);
+        },
+        dragToggle(instrument, bar) {
+          if (this.isDragging) {
+            if (this.toggleState !== this.isActive(instrument, bar)) {
+              this.toggleBar(instrument, bar);
+            }
+          }
+        },
+        endToggle() {
+          this.isDragging = false;
+        },
+      },
+    }).mount("#app");
+  </script>
+</body>
+</html>
