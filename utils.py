@@ -30,6 +30,7 @@ def make_groq_call(stems, song_name, p, section_type=None, bpm=120, bars=16):
     
     # Customize prompt based on whether we're generating a full track or section variants
     if section_type:
+        # Section variant code remains similar
         system_content = """You are a very experienced music producer and analyst. 
         You will be given audio stems and asked to create multiple variants of a specific section of a track.
         For each variant, return detailed instructions on how to arrange and process the stems.
@@ -70,38 +71,92 @@ def make_groq_call(stems, song_name, p, section_type=None, bpm=120, bars=16):
         }}
         """
     else:
-        system_content = """You are a very experienced music producer and analyst. For a given audio folder, that has the instruments, are combined to make a loop, and make some variations of it as well. After analyzing the code, you are supposed to return the code containing the different functions for producing the full track."""
+        system_content = """You are an expert electronic music producer with deep knowledge of EDM track composition and arrangement. You understand how to create dynamic energy progression through different sections of a track and how to effectively use instruments, effects, and processing to create professional electronic music."""
         
-        user_content = f"""Now, you have a new song {song_name}, which has the following contents:
-            {stems}
+        user_content = f"""I need professional production instructions for an EDM track named "{song_name}" using these available stems:
+        {stems}
 
-            BPM: {bpm}
-            Bars: {bars}
-            Section duration: {calculate_duration(bpm, bars)} seconds
+        Track parameters:
+        - BPM: {bpm}
+        - Variation level: p={p} (0=minimal variation, 1=maximum variation)
 
-            Each section should last exactly the calculated duration based on BPM and bars.
+        Create a complete track with these sections in order:
 
-            Return the code as per discussed in example. Create an EDM/electronic track with the following sections in order:
-            - intro: A gentle introduction to the track (8 bars)
-            - breakdown1: First breakdown with minimal elements (8 bars)
-            - buildup1: First tension-building section with rising energy (8 bars)
-            - drop1: First high-energy dance section with all elements (16 bars)
-            - breakdown2: Second breakdown for contrast (8 bars)
-            - buildup2: Second buildup with different elements than the first (8 bars)
-            - drop2: Second high-energy section with variations from the first drop (16 bars)
-            - outro: A gentle conclusion to the track (8 bars)
+        1. INTRO (8 bars, {calculate_duration(bpm, 8)} seconds):
+           - Purpose: Establish the track's sonic identity and gradually introduce elements
+           - Characteristics: Start minimal with primarily percussive elements, filtered versions of melodic elements
+           - Typically includes: Kick drum, basic percussion, atmospheric sounds, filtered pads
+           - Usually avoids: Bass drops, full chords, complete melodies
 
-            Return code in JSON. And make sure to use as many instruments possible in each variation.
+        2. BREAKDOWN1 (8 bars, {calculate_duration(bpm, 8)} seconds):
+           - Purpose: Create a melodic foundation while reducing energy temporarily
+           - Characteristics: Removal of kick drum, focus on harmony and melody, atmospheric elements
+           - Typically includes: Pads, arpeggios, vocal samples, light percussion, subtle bass
+           - Usually avoids: Heavy drums, aggressive basses, high-energy elements
 
-            For each section, include:
-            - "bpm": {bpm}
-            - "bars": the number of bars for this section (values suggested above)
-            - "duration_seconds": the calculated duration based on BPM and bars
+        3. BUILDUP1 (8 bars, {calculate_duration(bpm, 8)} seconds):
+           - Purpose: Create tension and anticipation before the drop
+           - Characteristics: Gradually increasing energy, rising effects, drum intensification
+           - Typically includes: Snare or clap rolls, rising effects, filter sweeps, pitch risers
+           - Technical elements: Increasing highpass filter on master, automated white noise rises, volume automation
 
-            The drops should have ALL stems. Adjust each section according to value of p={p} (p will remain in between 0-1; 0 means no variation in loop and 1 means high variation in loop).
+        4. DROP1 (16 bars, {calculate_duration(bpm, 16)} seconds):
+           - Purpose: Release the built-up tension with maximum energy
+           - Characteristics: Full rhythmic and sonic intensity, all main elements present
+           - Typically includes: Heavy kick/bass combination, lead synths, full percussion, vocal hooks
+           - Sound design: Sidechain compression on bass, heavy compression, wide stereo field
 
-            Return proper JSON, with all the keys and values.
-            """
+        5. BREAKDOWN2 (8 bars, {calculate_duration(bpm, 8)} seconds):
+           - Purpose: Provide contrast and rest after the high-energy drop
+           - Characteristics: Similar to first breakdown but with variations in melody/harmony
+           - Typically includes: Elements from the drop but filtered, new melodic ideas, quieter dynamics
+
+        6. BUILDUP2 (8 bars, {calculate_duration(bpm, 8)} seconds):
+           - Purpose: Build tension again but with variation from first buildup
+           - Characteristics: New tension-building techniques, different filter or effect automations
+           - Should differ from BUILDUP1 by: Using different stems or processing them differently
+
+        7. DROP2 (16 bars, {calculate_duration(bpm, 16)} seconds):
+           - Purpose: Second climax with variations from the first drop
+           - Characteristics: Same energy as first drop but with new elements or arrangements
+           - How to vary: Add/remove stems, change processing, introduce new melodic elements
+
+        8. OUTRO (8 bars, {calculate_duration(bpm, 8)} seconds):
+           - Purpose: Gradually conclude the track for smooth DJ transitions
+           - Characteristics: Gradual removal of elements, similar to intro but in reverse
+           - Processing: Increasing filtering, fading out elements, subtle reverb tails
+
+        The drops should utilize ALL available stems. Adjust the variation between sections according to p={p}.
+
+        For each section, provide:
+        1. Which stems to include
+        2. Specific audio operations (filters, effects, automation)
+        3. Arrangement instructions (when elements enter/exit)
+        4. Transition techniques between sections
+
+        Return your response as a properly formatted JSON object with this structure:
+        {{
+            "intro": {{
+                "stems": ["stem1.wav", "stem2.wav"],
+                "operations": [
+                    {{"stem": "stem1.wav", "operation": "low_pass_filter", "value": 500}},
+                    {{"stem": "stem2.wav", "operation": "fade_in", "value": 4000}}
+                ],
+                "arrangement": "Start with stem1 only, bring in stem2 at bar 5",
+                "bpm": {bpm},
+                "bars": 8,
+                "duration_seconds": {calculate_duration(bpm, 8)},
+                "transition_to_next": "Gradually filter in breakdown elements while removing kick"
+            }},
+            "breakdown1": {{ ... }},
+            "buildup1": {{ ... }},
+            "drop1": {{ ... }},
+            "breakdown2": {{ ... }},
+            "buildup2": {{ ... }},
+            "drop2": {{ ... }},
+            "outro": {{ ... }}
+        }}
+        """
     
     completion = client.chat.completions.create(
         model="meta-llama/llama-4-maverick-17b-128e-instruct",
