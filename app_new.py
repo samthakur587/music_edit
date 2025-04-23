@@ -101,7 +101,7 @@ def generate_section_variants_handler(
             p=float(p_value),
         )
         
-        logger.info(f"VARIANTS of section {section_type} : {variants}")
+        logger.info(f"S1: VARIANTS of section {section_type} : {variants}")
         
         progress(0.4, desc="Variants generated")
 
@@ -115,6 +115,8 @@ def generate_section_variants_handler(
         audio_paths = export_section_variants(
             variants, variant_output_dir, section_type
         )
+        
+        logger.info(f"S2: AUDIO_PATHS of section {section_type} : {audio_paths}")
 
         # Create audio elements for each variant
         variant1_audio = audio_paths.get("variant1")
@@ -125,6 +127,8 @@ def generate_section_variants_handler(
         # Descriptions
         descriptions = {key: data["description"] for key, data in variants.items()}
         descriptions_json = json.dumps(descriptions, indent=2)
+        
+        logger.info(f"S3: DESCRIPTIONS of section {section_type} : {descriptions_json}")
 
         progress(1.0, desc="Complete!")
 
@@ -316,12 +320,20 @@ def create_section_ui(section_name, bpm_default, bars_default, p_default):
                 status = gr.Textbox(label="Status", interactive=False)
                 descriptions = gr.JSON(label="Variant Descriptions")
 
+        # Create empty lists to store the audio and checkbox components
+        variant_audio_list = []
+        select_btn_list = []
+        
         with gr.Row():
             for i in range(1, 5):
                 with gr.Column():
                     gr.Markdown(f"### Variant {i}")
+                    # Create and immediately append each component to its respective list
                     variant_audio = gr.Audio(label=f"Variant {i}", interactive=False)
+                    variant_audio_list.append(variant_audio)
+                    
                     select_btn = gr.Checkbox(label=f"Select Variant {i}")
+                    select_btn_list.append(select_btn)
 
     return {
         "bpm_slider": bpm_slider,
@@ -330,10 +342,9 @@ def create_section_ui(section_name, bpm_default, bars_default, p_default):
         "generate_btn": generate_btn,
         "status": status,
         "descriptions": descriptions,
-        "variant_audio": [variant_audio for _ in range(4)],
-        "select_btn": [select_btn for _ in range(4)],
+        "variant_audio": variant_audio_list,  # Return the complete list of audio components
+        "select_btn": select_btn_list,  # Return the complete list of checkbox components
     }
-
 
 def setup_section_event_handlers(section_name, section_ui):
     """Setup event handlers for a given section."""

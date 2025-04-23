@@ -98,7 +98,7 @@ def make_groq_call(stems, song_name, p, section_type=None, bpm=120, bars=16):
         """
 
     completion = client.chat.completions.create(
-        model="meta-llama/llama-4-maverick-17b-128e-instruct",
+        model="gemma2-9b-it",
         messages=[
             {"role": "system", "content": system_content},
             {"role": "user", "content": user_content},
